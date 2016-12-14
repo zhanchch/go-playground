@@ -1,17 +1,15 @@
-package playgound
+package main
 
 import (
-    
     "sync"
-    "testing"
+    "sync/atomic"
 )
-
-// To run test: `go test -cpu=4 -bench=. ./rr_test.go`
 
 var mu = sync.Mutex{}
 var urls = []string{"1", "2", "3", "4", "5", "6", "7", "8"}
 var healthy = []bool{true, false, true, true, false, false, true, true}
-var which int
+var which int = 0
+var atomicWhich uint32 = 1<<32 - 5
 
 var getRR = make(chan chan string)
 
@@ -23,6 +21,8 @@ func start() {
         }
     }
 }
+
+type rrfunction func() string
 
 func RRChan() string{
     rr := make(chan string)
@@ -55,27 +55,20 @@ func RRNoLock() string {
     return ""
 }
 
-func BenchmarkRRLock(b *testing.B){
-    b.RunParallel(func(pb *testing.PB) {
-        for pb.Next() {
-            RRLock()
+func RRAtomic() string{
+    length := len(urls)
+    for i := 0; i < length; i++ {
+        num := atomic.AddUint32(&atomicWhich, 1)
+        //fmt.Print("Atomic")
+        //fmt.Println(num)
+        
+        idx := int(num) % length
+        if healthy[idx]{
+            return urls[idx]
         }
-    })
+    }
+    return ""
 }
 
-func BenchmarkRRNoLock(b *testing.B){
-    b.RunParallel(func(pb *testing.PB) {
-        for pb.Next() {
-            RRNoLock()
-        }
-    })
-}
-
-func BenchmarkRRChan(b *testing.B){
-    go start()
-    b.RunParallel(func(pb *testing.PB) {
-        for pb.Next() {
-            RRChan()
-        }
-    })
+func main() {
 }
